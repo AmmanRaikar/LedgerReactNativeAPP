@@ -3,6 +3,7 @@
     "name": "LedgerReactNativeAPP",
     "slug": "LedgerReactNativeAPP",
     "version": "1.0.0",
+    "scheme": "LedgerReactNativeAPP",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
