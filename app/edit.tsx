@@ -1,44 +1,70 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { View, Text, TextInput, Button, StyleSheet, Alert } from "react-native";
-import { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  Alert,
+} from "react-native";
+import { useState } from "react";
 import { updateLedgerEntry } from "../config/ledgerService";
 import { LedgerEntryWithId } from "../lib/types";
 
 // Converts DD-MM-YYYY to ISO format YYYY-MM-DD
-function convertToISO(displayDate: string): string {
-  const [dd, mm, yyyy] = displayDate.split("-");
+function convertToISO(displayDate: string): string | null {
+  const match = displayDate.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+  if (!match) return null;
+  const [_, dd, mm, yyyy] = match;
   return `${yyyy}-${mm}-${dd}`;
 }
 
 export default function EditPage() {
   const { entry } = useLocalSearchParams<{ entry: string }>();
   const router = useRouter();
+
   const parsedEntry = JSON.parse(entry || "{}") as LedgerEntryWithId;
 
   const [serialNumber, setSerialNumber] = useState(parsedEntry.serialNumber);
-  const [displayDate, setDate] = useState(
+  const [displayDate, setDisplayDate] = useState(
     parsedEntry.displayDate || parsedEntry.date
   );
   const [weight, setWeight] = useState(parsedEntry.weight);
   const [amount, setAmount] = useState(parsedEntry.amount.toString());
 
-  const isoDate = convertToISO(displayDate);
-
   const handleUpdate = async () => {
+    // Input validation
+    if (!serialNumber.trim() || !weight.trim()) {
+      return Alert.alert("Validation Error", "Serial number and weight are required.");
+    }
+
+    const isoDate = convertToISO(displayDate.trim());
+    if (!isoDate) {
+      return Alert.alert(
+        "Invalid Date Format",
+        "Please enter the date in DD-MM-YYYY format."
+      );
+    }
+
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return Alert.alert("Invalid Amount", "Please enter a valid numeric amount.");
+    }
+
     try {
       await updateLedgerEntry(parsedEntry.id, {
-        serialNumber,
-        displayDate,
+        serialNumber: serialNumber.trim(),
+        displayDate: displayDate.trim(),
         date: isoDate,
-        weight,
-        amount: parseFloat(amount),
+        weight: weight.trim(),
+        amount: parsedAmount,
       });
 
-      Alert.alert("Success", "Entry updated successfully");
+      Alert.alert("Success", "Entry updated successfully.");
       router.back();
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Failed to update entry");
+      Alert.alert("Error", "Failed to update the entry.");
     }
   };
 
@@ -55,7 +81,7 @@ export default function EditPage() {
       <TextInput
         style={styles.input}
         value={displayDate}
-        onChangeText={setDate}
+        onChangeText={setDisplayDate}
         placeholder="Date (DD-MM-YYYY)"
       />
       <TextInput

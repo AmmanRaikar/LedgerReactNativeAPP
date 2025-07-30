@@ -2,7 +2,6 @@ import {
   StyleSheet,
   Text,
   View,
-  Button,
   TextInput,
   FlatList,
   TouchableOpacity,
@@ -11,18 +10,25 @@ import {
   Modal,
   Pressable,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useRouter, useNavigation } from "expo-router";
+import { useState, useEffect, useLayoutEffect } from "react";
 import { getAllLedgerEntries } from "../config/ledgerService";
 import { calculateInterestFields } from "../lib/ledger";
 import { LedgerEntryWithId } from "../lib/types";
 import { Ionicons } from "@expo/vector-icons";
+import AnimatedBackground from "../components/AnimatedBackground";
 
 export default function Page() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState<LedgerEntryWithId[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+
+  const navigation = useNavigation();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, []);
 
   const parseSerialInput = (input: string): string[] => {
     const parts = input.split(",").map((part) => part.trim());
@@ -90,11 +96,13 @@ export default function Page() {
 
   return (
     <View style={styles.container}>
+      <AnimatedBackground />
       <View style={styles.content}>
         <View style={styles.searchRow}>
           <TextInput
             style={styles.input}
             placeholder="Search serials (e.g. 1,3-5,NS1)"
+            placeholderTextColor="#aaa"
             value={searchQuery}
             onChangeText={setSearchQuery}
             onSubmitEditing={handleSearch}
@@ -104,8 +112,25 @@ export default function Page() {
             <Ionicons name="search" size={20} color="white" />
           </TouchableOpacity>
         </View>
-        <Button title="Add Entry" onPress={() => router.push("/add")} />
-        <Button title="View Page" onPress={() => router.push("/view")} />
+
+        <TouchableOpacity
+          onPress={() => router.push("/add")}
+          style={styles.glassButton}
+        >
+          <Text style={styles.buttonText}>Add Entry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push("/view")}
+          style={styles.glassButton}
+        >
+          <Text style={styles.buttonText}>View Page</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => router.push("/analytics")}
+          style={styles.glassButton}
+        >
+          <Text style={styles.buttonText}>Analytics Page</Text>
+        </TouchableOpacity>
 
         <Modal
           visible={modalVisible}
@@ -114,69 +139,77 @@ export default function Page() {
           transparent
         >
           <View style={styles.modalBackdrop}>
-            <ScrollView horizontal style={styles.scrollModalCard}>
-              <View style={styles.modalCard}>
-                <Text style={styles.resultTitle}>
-                  Results ({results.length} items):
-                </Text>
-                <FlatList
-                  data={results}
-                  keyExtractor={(item) => item.id}
-                  ListHeaderComponent={() => (
-                    <View style={[styles.row, styles.header]}>
-                      <Text style={styles.headerCell}>SL. NO.</Text>
-                      <Text style={styles.headerCell}>Date</Text>
-                      <Text style={styles.headerCell}>Weight</Text>
-                      <Text style={styles.headerCell}>Amount</Text>
-                      <Text style={styles.headerCell}>Interest</Text>
-                      <Text style={styles.headerCell}>Total</Text>
-                    </View>
-                  )}
-                  ListFooterComponent={() => (
-                    <View style={[styles.row, styles.footer]}>
-                      <Text style={styles.cell}>Total</Text>
-                      <Text style={styles.cell}></Text>
-                      <Text style={styles.cell}></Text>
-                      <Text style={styles.cell}></Text>
-                      <Text style={styles.cell}>
-                        {totals.interestToday.toFixed(2)}
-                      </Text>
-                      <Text style={styles.cell}>
-                        {totals.totalPayable.toFixed(2)}
-                      </Text>
-                    </View>
-                  )}
-                  renderItem={({ item }) => (
-                    <View style={styles.row}>
-                      <TouchableOpacity
-                        onPress={() =>
-                          router.push({
-                            pathname: "/edit",
-                            params: { entry: JSON.stringify(item) },
-                          })
-                        }
-                      >
-                        <Text style={[styles.cell, { color: "blue" }]}> 
-                          {item.serialNumber}
+            <View style={styles.modalCard}>
+              <Text style={styles.resultTitle}>
+                Results ({results.length} items):
+              </Text>
+
+              {/* Shared horizontal scroll container */}
+              <ScrollView horizontal contentOffset={{ x: 0, y: 0 }}>
+                <View>
+                  {/* Header Row */}
+                  <View style={[styles.row, styles.header]}>
+                    <Text style={styles.headerCell}>SL. NO.</Text>
+                    <Text style={styles.headerCell}>Date</Text>
+                    <Text style={styles.headerCell}>Weight</Text>
+                    <Text style={styles.headerCell}>Amount</Text>
+                    <Text style={styles.headerCell}>Interest</Text>
+                    <Text style={styles.headerCell}>Total</Text>
+                  </View>
+
+                  {/* Vertical scroll for data rows */}
+                  <ScrollView style={{ maxHeight: 250 }}>
+                    {results.map((item) => (
+                      <View style={styles.row} key={item.id}>
+                        <TouchableOpacity
+                          onPress={() =>
+                            router.push({
+                              pathname: "/edit",
+                              params: { entry: JSON.stringify(item) },
+                            })
+                          }
+                        >
+                          <Text style={[styles.cell, { color: "#6faaff" }]}>
+                            {item.serialNumber}
+                          </Text>
+                        </TouchableOpacity>
+                        <Text style={styles.cell}>{item.displayDate}</Text>
+                        <Text style={styles.cell}>{item.weight}</Text>
+                        <Text style={styles.cell}>{item.amount}</Text>
+                        <Text style={styles.cell}>
+                          {(item.interestToday ?? 0).toFixed(2)}
                         </Text>
-                      </TouchableOpacity>
-                      <Text style={styles.cell}>{item.displayDate}</Text>
-                      <Text style={styles.cell}>{item.weight}</Text>
-                      <Text style={styles.cell}>{item.amount}</Text>
-                      <Text style={styles.cell}>
-                        {(item.interestToday ?? 0).toFixed(2)}
-                      </Text>
-                      <Text style={styles.cell}>
-                        {(item.totalPayable ?? 0).toFixed(2)}
-                      </Text>
-                    </View>
-                  )}
-                />
-                <Pressable onPress={() => setModalVisible(false)} style={styles.closeBtn}>
-                  <Text style={{ color: "white" }}>Close</Text>
-                </Pressable>
-              </View>
-            </ScrollView>
+                        <Text style={styles.cell}>
+                          {(item.totalPayable ?? 0).toFixed(2)}
+                        </Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+
+                  {/* Footer Row */}
+                  <View style={[styles.row, styles.footer]}>
+                    <Text style={styles.cell}>Total</Text>
+                    <Text style={styles.cell}></Text>
+                    <Text style={styles.cell}></Text>
+                    <Text style={styles.cell}></Text>
+                    <Text style={styles.cell}>
+                      {totals.interestToday.toFixed(2)}
+                    </Text>
+                    <Text style={styles.cell}>
+                      {totals.totalPayable.toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+              </ScrollView>
+
+              {/* Fixed Close Button */}
+              <Pressable
+                onPress={() => setModalVisible(false)}
+                style={styles.closeBtn}
+              >
+                <Text style={{ color: "white" }}>Close</Text>
+              </Pressable>
+            </View>
           </View>
         </Modal>
       </View>
@@ -187,79 +220,148 @@ export default function Page() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    justifyContent: "center",
+    position: "relative",
+    justifyContent: "flex-start",
     alignItems: "center",
   },
   content: {
+    flex: 1,
+    justifyContent: "center", // center vertically
+    alignItems: "center",
     width: "90%",
   },
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 20,
   },
   input: {
     flex: 1,
-    borderColor: "#ccc",
-    borderWidth: 1,
-    padding: 8,
-    borderRadius: 4,
+    backgroundColor: "#2c2c2c",
+    color: "#fff",
+    padding: 10,
+    borderRadius: 10,
     marginRight: 8,
   },
   searchBtn: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#333",
     padding: 10,
-    borderRadius: 4,
+    borderRadius: 10,
+  },
+  glassButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    paddingVertical: 18,
+    paddingHorizontal: 40,
+    borderRadius: 50, // more rounded
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    marginVertical: 12, // more vertical spacing
+    width: "100%",
+    maxWidth: 300, // limit width
+  },
+
+  buttonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
+    // backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",
+    paddingHorizontal: 10, // ensures padding from left/right edges
+  },
+
+  scrollArea: {
+    height: 300, // or dynamically calculate based on screen height
+  },
+
+  fixedHeaderFooter: {
+    overflow: "hidden", // ensure consistent layout
   },
   scrollModalCard: {
     maxHeight: "80%",
   },
-  modalCard: {
-    backgroundColor: "white",
-    borderRadius: 8,
+  modalContainer: {
+    backgroundColor: "#1e1e1e",
+    borderRadius: 12,
     padding: 16,
-    minWidth: 600,
+    maxWidth: "90%",
+    maxHeight: "80%",
+    width: "90%",
   },
+
+  verticalScroll: {
+    flexGrow: 0,
+    maxHeight: "75%", // ensures content scrolls if overflow
+  },
+
+  modalWrapper: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 16, // add spacing from screen edges
+  },
+
+  tableContainer: {
+    flex: 1,
+  },
+
   resultTitle: {
     fontWeight: "bold",
     fontSize: 16,
     marginBottom: 8,
+    color: "#fff",
   },
+
+  header: {
+    backgroundColor: "#2c2c2c",
+  },
+
+  modalCard: {
+    backgroundColor: "#1e1e1e",
+    borderRadius: 12,
+    padding: 16,
+    width: "100%",
+    maxWidth: "100%", // allow flexible width but padded
+    maxHeight: "85%",
+  },
+
   row: {
     flexDirection: "row",
-    paddingVertical: 6,
     borderBottomWidth: 0.5,
-    borderBottomColor: "#ccc",
+    borderBottomColor: "#444",
+    paddingVertical: 10,
   },
-  header: {
-    backgroundColor: "#eee",
-  },
-  footer: {
-    backgroundColor: "#f8f8f8",
-  },
+
   cell: {
     minWidth: 80,
-    fontSize: 14,
+    fontSize: 16,
     textAlign: "center",
+    color: "#ddd",
   },
+
   headerCell: {
     minWidth: 80,
     fontWeight: "bold",
     fontSize: 14,
     textAlign: "center",
+    color: "#fff",
   },
+
+  footer: {
+    backgroundColor: "#2c2c2c",
+    borderTopWidth: 1,
+    borderTopColor: "#444",
+  },
+
   closeBtn: {
     marginTop: 12,
-    backgroundColor: "#007AFF",
+    backgroundColor: "#333",
     padding: 10,
     alignItems: "center",
-    borderRadius: 4,
+    borderRadius: 10,
   },
 });

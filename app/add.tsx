@@ -2,7 +2,7 @@ import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import { useState } from 'react';
 import { addLedgerEntry } from '../config/ledgerService';
 import { useRouter } from 'expo-router';
-import { parse, format } from 'date-fns';
+import { parse, format, isValid } from 'date-fns';
 
 export default function AddEntryScreen() {
   const router = useRouter();
@@ -13,29 +13,48 @@ export default function AddEntryScreen() {
   const [amount, setAmount] = useState('');
 
   const handleSubmit = async () => {
-    if (!serialNumber || !displayDate || !weight || !amount) {
-      Alert.alert('Error', 'Please fill all fields.');
+    const trimmedSerial = serialNumber.trim();
+    const trimmedDate = displayDate.trim();
+    const trimmedWeight = weight.trim();
+    const trimmedAmount = amount.trim();
+
+    if (!trimmedSerial || !trimmedDate || !trimmedWeight || !trimmedAmount) {
+      Alert.alert('Validation Error', 'Please fill all fields.');
+      return;
+    }
+
+    const parsedDate = parse(trimmedDate, 'dd-MM-yyyy', new Date());
+    if (!isValid(parsedDate)) {
+      Alert.alert('Invalid Date', 'Please enter a valid date in DD-MM-YYYY format.');
+      return;
+    }
+
+    const numericAmount = parseFloat(trimmedAmount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      Alert.alert('Invalid Amount', 'Amount must be a positive number.');
       return;
     }
 
     try {
-      // Parse and format the ISO date
-      const parsedDate = parse(displayDate, 'dd-MM-yyyy', new Date());
-      const isoDate = format(parsedDate, 'yyyy-MM-dd'); // For Firestore logic
+      const isoDate = format(parsedDate, 'yyyy-MM-dd');
 
       await addLedgerEntry({
-        serialNumber,
-        displayDate, // original input for UI
-        date: isoDate,     // reliable for sorting/logic
-        weight,
-        amount: parseFloat(amount),
+        serialNumber: trimmedSerial,
+        displayDate: trimmedDate,
+        date: isoDate,
+        weight: trimmedWeight,
+        amount: numericAmount,
       });
 
       Alert.alert('Success', 'Entry added!');
-      router.replace('/');
+      // Instead of navigating away, we reset the form
+      setSerialNumber('');
+      setDisplayDate('');
+      setWeight('');
+      setAmount('');
     } catch (err) {
-      Alert.alert('Error', 'Failed to add entry. Check date format.');
       console.error(err);
+      Alert.alert('Error', 'Failed to add entry.');
     }
   };
 
