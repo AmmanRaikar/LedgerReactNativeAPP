@@ -3,31 +3,56 @@ import {
   Text,
   View,
   TextInput,
-  FlatList,
   TouchableOpacity,
   ScrollView,
   Keyboard,
   Modal,
   Pressable,
+  Image,
+  Animated,
 } from "react-native";
 import { useRouter, useNavigation } from "expo-router";
-import { useState, useEffect, useLayoutEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { getAllLedgerEntries } from "../config/ledgerService";
 import { calculateInterestFields } from "../lib/ledger";
 import { LedgerEntryWithId } from "../lib/types";
 import { Ionicons } from "@expo/vector-icons";
-import AnimatedBackground from "../components/AnimatedBackground";
+
+const logo = require("../assets/icon.png");
+
+// Prevent splash from reappearing after first render
+let splashHasShown = false;
 
 export default function Page() {
   const router = useRouter();
+  const navigation = useNavigation();
+
+  const [showSplash, setShowSplash] = useState(!splashHasShown);
+  const splashOpacity = useRef(new Animated.Value(1)).current;
+
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState<LedgerEntryWithId[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
 
-  const navigation = useNavigation();
-
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
+  }, []);
+
+  useEffect(() => {
+    if (!splashHasShown) {
+      const timeout = setTimeout(() => {
+        Animated.timing(splashOpacity, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: true,
+        }).start(() => {
+          splashHasShown = true;
+          setShowSplash(false);
+        });
+      }, 1800);
+
+      return () => clearTimeout(timeout);
+    }
   }, []);
 
   const parseSerialInput = (input: string): string[] => {
@@ -64,7 +89,6 @@ export default function Page() {
     return data.sort((a, b) => {
       const [prefixA, numA] = extractSortKey(a.serialNumber);
       const [prefixB, numB] = extractSortKey(b.serialNumber);
-
       if (prefixA === prefixB) return numA - numB;
       return prefixA.localeCompare(prefixB);
     });
@@ -73,7 +97,8 @@ export default function Page() {
   const handleSearch = async () => {
     Keyboard.dismiss();
     const allEntries = await getAllLedgerEntries();
-    const searchList = parseSerialInput(searchQuery);
+    const searchList = parseSerialInput(searchQuery.replace(/\s+/g, ""));
+
     const matched = allEntries
       .filter((entry) => searchList.includes(entry.serialNumber))
       .map((entry) => ({
@@ -94,9 +119,17 @@ export default function Page() {
     { interestToday: 0, totalPayable: 0 }
   );
 
+  if (showSplash) {
+    return (
+      <Animated.View style={[styles.splashContainer, { opacity: splashOpacity }]}>
+        <Image source={logo} style={styles.splashLogo} resizeMode="contain" />
+        <Text style={styles.splashText}>FROM AMMAN</Text>
+      </Animated.View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      <AnimatedBackground />
       <View style={styles.content}>
         <View style={styles.searchRow}>
           <TextInput
@@ -113,22 +146,13 @@ export default function Page() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          onPress={() => router.push("/add")}
-          style={styles.glassButton}
-        >
+        <TouchableOpacity onPress={() => router.push("/add")} style={styles.glassButton}>
           <Text style={styles.buttonText}>Add Entry</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push("/view")}
-          style={styles.glassButton}
-        >
+        <TouchableOpacity onPress={() => router.push("/view")} style={styles.glassButton}>
           <Text style={styles.buttonText}>View Page</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push("/analytics")}
-          style={styles.glassButton}
-        >
+        <TouchableOpacity onPress={() => router.push("/analytics")} style={styles.glassButton}>
           <Text style={styles.buttonText}>Analytics Page</Text>
         </TouchableOpacity>
 
@@ -140,14 +164,9 @@ export default function Page() {
         >
           <View style={styles.modalBackdrop}>
             <View style={styles.modalCard}>
-              <Text style={styles.resultTitle}>
-                Results ({results.length} items):
-              </Text>
-
-              {/* Shared horizontal scroll container */}
-              <ScrollView horizontal contentOffset={{ x: 0, y: 0 }}>
+              <Text style={styles.resultTitle}>Results ({results.length} items):</Text>
+              <ScrollView horizontal removeClippedSubviews>
                 <View>
-                  {/* Header Row */}
                   <View style={[styles.row, styles.header]}>
                     <Text style={styles.headerCell}>SL. NO.</Text>
                     <Text style={styles.headerCell}>Date</Text>
@@ -157,8 +176,7 @@ export default function Page() {
                     <Text style={styles.headerCell}>Total</Text>
                   </View>
 
-                  {/* Vertical scroll for data rows */}
-                  <ScrollView style={{ maxHeight: 250 }}>
+                  <ScrollView style={{ maxHeight: 250 }} removeClippedSubviews>
                     {results.map((item) => (
                       <View style={styles.row} key={item.id}>
                         <TouchableOpacity
@@ -186,27 +204,26 @@ export default function Page() {
                     ))}
                   </ScrollView>
 
-                  {/* Footer Row */}
                   <View style={[styles.row, styles.footer]}>
                     <Text style={styles.cell}>Total</Text>
                     <Text style={styles.cell}></Text>
                     <Text style={styles.cell}></Text>
                     <Text style={styles.cell}></Text>
                     <Text style={styles.cell}>
-                      {totals.interestToday.toFixed(2)}
+                      {totals.interestToday.toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })}
                     </Text>
                     <Text style={styles.cell}>
-                      {totals.totalPayable.toFixed(2)}
+                      {totals.totalPayable.toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                      })}
                     </Text>
                   </View>
                 </View>
               </ScrollView>
 
-              {/* Fixed Close Button */}
-              <Pressable
-                onPress={() => setModalVisible(false)}
-                style={styles.closeBtn}
-              >
+              <Pressable onPress={() => setModalVisible(false)} style={styles.closeBtn}>
                 <Text style={{ color: "white" }}>Close</Text>
               </Pressable>
             </View>
@@ -226,7 +243,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: "center", // center vertically
+    justifyContent: "center",
     alignItems: "center",
     width: "90%",
   },
@@ -252,15 +269,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.05)",
     paddingVertical: 18,
     paddingHorizontal: 40,
-    borderRadius: 50, // more rounded
+    borderRadius: 50,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.1)",
     alignItems: "center",
-    marginVertical: 12, // more vertical spacing
+    marginVertical: 12,
     width: "100%",
-    maxWidth: 300, // limit width
+    maxWidth: 300,
   },
-
   buttonText: {
     color: "#fff",
     fontSize: 18,
@@ -268,81 +284,33 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    // backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 10, // ensures padding from left/right edges
+    paddingHorizontal: 10,
   },
-
-  scrollArea: {
-    height: 300, // or dynamically calculate based on screen height
-  },
-
-  fixedHeaderFooter: {
-    overflow: "hidden", // ensure consistent layout
-  },
-  scrollModalCard: {
-    maxHeight: "80%",
-  },
-  modalContainer: {
-    backgroundColor: "#1e1e1e",
-    borderRadius: 12,
-    padding: 16,
-    maxWidth: "90%",
-    maxHeight: "80%",
-    width: "90%",
-  },
-
-  verticalScroll: {
-    flexGrow: 0,
-    maxHeight: "75%", // ensures content scrolls if overflow
-  },
-
-  modalWrapper: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 16, // add spacing from screen edges
-  },
-
-  tableContainer: {
-    flex: 1,
-  },
-
-  resultTitle: {
-    fontWeight: "bold",
-    fontSize: 16,
-    marginBottom: 8,
-    color: "#fff",
-  },
-
-  header: {
-    backgroundColor: "#2c2c2c",
-  },
-
   modalCard: {
     backgroundColor: "#1e1e1e",
     borderRadius: 12,
     padding: 16,
     width: "100%",
-    maxWidth: "100%", // allow flexible width but padded
+    maxWidth: "100%",
     maxHeight: "85%",
   },
-
   row: {
     flexDirection: "row",
     borderBottomWidth: 0.5,
     borderBottomColor: "#444",
     paddingVertical: 10,
   },
-
   cell: {
     minWidth: 80,
     fontSize: 16,
     textAlign: "center",
     color: "#ddd",
   },
-
+  header: {
+    backgroundColor: "#2c2c2c",
+  },
   headerCell: {
     minWidth: 80,
     fontWeight: "bold",
@@ -350,18 +318,38 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#fff",
   },
-
   footer: {
     backgroundColor: "#2c2c2c",
     borderTopWidth: 1,
     borderTopColor: "#444",
   },
-
+  resultTitle: {
+    fontWeight: "bold",
+    fontSize: 16,
+    marginBottom: 8,
+    color: "#fff",
+  },
   closeBtn: {
     marginTop: 12,
     backgroundColor: "#333",
     padding: 10,
     alignItems: "center",
     borderRadius: 10,
+  },
+  splashContainer: {
+    flex: 1,
+    backgroundColor: "#0e0e0e",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  splashLogo: {
+    width: 150,
+    height: 150,
+    marginBottom: 20,
+  },
+  splashText: {
+    fontSize: 18,
+    color: "#ccc",
+    letterSpacing: 2,
   },
 });

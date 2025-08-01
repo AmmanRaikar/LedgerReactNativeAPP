@@ -3,21 +3,25 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  useColorScheme,
-  Switch,
+  TouchableOpacity,
 } from "react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useLayoutEffect } from "react";
 import { getAllLedgerEntries } from "../config/ledgerService";
 import { calculateInterestFields } from "../lib/ledger";
-import { Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter, useNavigation } from "expo-router";
 
 export default function AnalyticsPage() {
   const [totalPayable, setTotalPayable] = useState(0);
   const [totalInterest, setTotalInterest] = useState(0);
   const [monthlyPayableIncrease, setMonthlyPayableIncrease] = useState(0);
   const [totalEntries, setTotalEntries] = useState(0);
-  const systemTheme = useColorScheme();
-  const [isDarkMode, setIsDarkMode] = useState(true); // Default dark
+  const router = useRouter();
+  const navigation = useNavigation();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -41,7 +45,8 @@ export default function AnalyticsPage() {
 
       const monthlyIncrease = enriched.reduce((acc, entry) => {
         if (!entry.interestRate || !entry.interestApplicableAmount) return acc;
-        const monthlyTotalIncrease = (entry.interestRate / 100) * entry.interestApplicableAmount;
+        const monthlyTotalIncrease =
+          (entry.interestRate / 100) * entry.interestApplicableAmount;
         return acc + monthlyTotalIncrease;
       }, 0);
 
@@ -53,73 +58,96 @@ export default function AnalyticsPage() {
     fetchData();
   }, []);
 
-  const styles = getStyles(isDarkMode);
-
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.toggleRow}>
-        <Feather
-          name={isDarkMode ? "moon" : "sun"}
-          size={20}
-          color={isDarkMode ? "#ccc" : "#333"}
-        />
-        <Switch
-          value={isDarkMode}
-          onValueChange={() => setIsDarkMode((prev) => !prev)}
-          trackColor={{ false: "#ccc", true: "#666" }}
-          thumbColor={isDarkMode ? "#fff" : "#333"}
-        />
+    <View style={styles.container}>
+      {/* Floating Back Button */}
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <Ionicons name="arrow-back" size={24} color="#fff" />
+      </TouchableOpacity>
+
+      <View style={styles.content}>
+        <Text style={styles.title}>📊 Analytics</Text>
+
+        <View style={styles.card}>
+          <Text style={styles.stat}>
+            📌 Total Entries: <Text style={styles.value}>{totalEntries}</Text>
+          </Text>
+          <Text style={styles.stat}>
+            💰 Total Payable:{" "}
+            <Text style={styles.value}>
+              ₹
+              {totalPayable.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+              })}
+            </Text>
+          </Text>
+          <Text style={styles.stat}>
+            🏦 Daily Interest:{" "}
+            <Text style={styles.value}>
+              ₹
+              {totalInterest.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+              })}
+            </Text>
+          </Text>
+          <Text style={styles.stat}>
+            📈 Monthly Growth:{" "}
+            <Text style={styles.value}>
+              ₹
+              {monthlyPayableIncrease.toLocaleString("en-IN", {
+                minimumFractionDigits: 2,
+              })}
+            </Text>
+          </Text>
+        </View>
       </View>
-      <Text style={styles.title}>📊 Analytics</Text>
-      <View style={styles.card}>
-        <Text style={styles.stat}>📌 Total Entries: <Text style={styles.value}>{totalEntries}</Text></Text>
-        <Text style={styles.stat}>💰 Total Amount Payable: <Text style={styles.value}>₹{totalPayable.toFixed(2)}</Text></Text>
-        <Text style={styles.stat}>🏦 Total Interest (Daily): <Text style={styles.value}>₹{totalInterest.toFixed(2)}</Text></Text>
-        <Text style={styles.stat}>📈 Monthly Payable Growth: <Text style={styles.value}>₹{monthlyPayableIncrease.toFixed(2)}</Text></Text>
-      </View>
-    </ScrollView>
+    </View>
   );
 }
 
-function getStyles(isDarkMode: boolean) {
-  return StyleSheet.create({
-    container: {
-      padding: 24,
-      backgroundColor: isDarkMode ? "#121212" : "#f9f9f9",
-      flexGrow: 1,
-    },
-    title: {
-      fontSize: 28,
-      fontWeight: "bold",
-      marginBottom: 20,
-      color: isDarkMode ? "#fff" : "#333",
-      textAlign: "center",
-    },
-    card: {
-      backgroundColor: isDarkMode ? "#1e1e1e" : "#fff",
-      borderRadius: 12,
-      padding: 20,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 6,
-      elevation: 3,
-    },
-    stat: {
-      fontSize: 16,
-      marginVertical: 8,
-      color: isDarkMode ? "#ccc" : "#555",
-    },
-    value: {
-      fontWeight: "bold",
-      color: isDarkMode ? "#fff" : "#000",
-    },
-    toggleRow: {
-      flexDirection: "row",
-      justifyContent: "flex-end",
-      alignItems: "center",
-      marginBottom: 12,
-      gap: 10,
-    },
-  });
-}
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    position: "relative",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  content: {
+    width: "90%",
+    maxWidth: 360,
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  card: {
+    width: "100%",
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    padding: 20,
+  },
+  stat: {
+    fontSize: 16,
+    color: "#ddd",
+    marginVertical: 10,
+  },
+  value: {
+    fontWeight: "bold",
+    color: "white",
+    fontSize: 16,
+  },
+  backButton: {
+    position: "absolute",
+    top: 40,
+    left: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    padding: 10,
+    borderRadius: 30,
+    zIndex: 10,
+  },
+});

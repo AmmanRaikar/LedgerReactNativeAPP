@@ -1,16 +1,20 @@
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from "react";
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  Alert,
-  TouchableOpacity,
   ScrollView,
-  Button,
+  TouchableOpacity,
+  Alert,
   useWindowDimensions,
 } from "react-native";
-import { useEffect, useLayoutEffect, useState, useCallback } from "react";
-import { useNavigation, useRouter, useFocusEffect } from "expo-router";
+import { useFocusEffect, useNavigation, useRouter } from "expo-router";
+import { Feather } from "@expo/vector-icons";
 import {
   getAllLedgerEntries,
   deleteLedgerEntry,
@@ -18,92 +22,25 @@ import {
 import { calculateInterestFields } from "../lib/ledger";
 import { LedgerEntryWithId } from "../lib/types";
 import { exportLedgerToCSV } from "../lib/exportToCSV";
-import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
 export default function ViewPage() {
+  const navigation = useNavigation();
+  const router = useRouter();
+
   const [entries, setEntries] = useState<LedgerEntryWithId[]>([]);
   const [mode, setMode] = useState<"view" | "edit" | "delete">("view");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isDarkMode, setIsDarkMode] = useState(true);
-  const [scale, setScale] = useState(1);
-  const navigation = useNavigation();
-  const router = useRouter();
-  const { width: screenWidth } = useWindowDimensions();
-  const styles = getStyles(isDarkMode, scale);
 
   useLayoutEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <View style={{ flexDirection: "row", gap: 10, marginRight: 10, alignItems: "center" }}>
-          <TouchableOpacity onPress={() => setIsDarkMode((prev) => !prev)}>
-            <Feather
-              name={isDarkMode ? "moon" : "sun"}
-              size={20}
-              color={isDarkMode ? "#ccc" : "#333"}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={async () => {
-              try {
-                await exportLedgerToCSV(entries);
-              } catch (err: any) {
-                Alert.alert("Export Failed", err.message || "Unknown error");
-              }
-            }}
-          >
-            <Feather name="download" size={20} color={isDarkMode ? "#ccc" : "#333"} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setMode(mode === "edit" ? "view" : "edit")}> 
-            <Feather name="edit" size={20} color={isDarkMode ? "#ccc" : "#333"} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setMode(mode === "delete" ? "view" : "delete")}> 
-            <Feather name="trash" size={20} color="red" />
-          </TouchableOpacity>
-        </View>
-      ),
-    });
-  }, [navigation, mode, entries, isDarkMode]);
+    navigation.setOptions({ headerShown: false });
+  }, []);
 
-  const toggleSelection = (id: string) => {
-    setSelectedIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  };
-
-  const handleBulkDelete = async () => {
-    Alert.alert("Confirm", "Are you sure you want to delete selected entries?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          await Promise.all(Array.from(selectedIds).map(deleteLedgerEntry));
-          setSelectedIds(new Set());
-          fetchEntries();
-        },
-      },
-    ]);
-  };
-
-  const sortEntries = (data: LedgerEntryWithId[]) => {
-    const extractSortKey = (val: string): [string, number] => {
-      const match = val.match(/^([A-Za-z]*)(\d+)$/);
-      return match ? [match[1] || "", parseInt(match[2], 10)] : [val, 0];
-    };
-
-    return data.sort((a, b) => {
-      const [prefixA, numA] = extractSortKey(a.serialNumber);
-      const [prefixB, numB] = extractSortKey(b.serialNumber);
-      if (prefixA === prefixB) return numA - numB;
-      return prefixA.localeCompare(prefixB);
-    });
-  };
+  useFocusEffect(
+    useCallback(() => {
+      fetchEntries();
+    }, [])
+  );
 
   const fetchEntries = async () => {
     const data = await getAllLedgerEntries();
@@ -114,39 +51,41 @@ export default function ViewPage() {
     setEntries(sortEntries(withInterest));
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchEntries();
-    }, [])
-  );
+  const sortEntries = (data: LedgerEntryWithId[]) => {
+    const extractSortKey = (val: string): [string, number] => {
+      const match = val.match(/^([A-Za-z]*)(\d+)$/);
+      return match ? [match[1] || "", parseInt(match[2], 10)] : [val, 0];
+    };
+    return data.sort((a, b) => {
+      const [prefixA, numA] = extractSortKey(a.serialNumber);
+      const [prefixB, numB] = extractSortKey(b.serialNumber);
+      return prefixA === prefixB ? numA - numB : prefixA.localeCompare(prefixB);
+    });
+  };
 
-  const renderItem = ({ item }: { item: LedgerEntryWithId }) => (
-    <View style={styles.row}>
-      {mode === "delete" && (
-        <TouchableOpacity
-          onPress={() => toggleSelection(item.id)}
-          style={[styles.cell, styles.selectCell]}
-        >
-          <Text style={styles.text}>{selectedIds.has(item.id) ? "✓" : ""}</Text>
-        </TouchableOpacity>
-      )}
-      {mode === "edit" && (
-        <TouchableOpacity
-          onPress={() =>
-            router.push({ pathname: "/edit", params: { entry: JSON.stringify(item) } })
-          }
-        >
-          <Text style={[styles.actionCell, { color: "blue" }]}>Edit</Text>
-        </TouchableOpacity>
-      )}
-      <Text style={[styles.cell, { flex: 0.5 }]}>{item.serialNumber}</Text>
-      <Text style={styles.cell}>{item.displayDate}</Text>
-      <Text style={styles.cell}>{item.weight}</Text>
-      <Text style={styles.cell}>{item.amount}</Text>
-      <Text style={styles.cell}>{(item.interestToday ?? 0).toFixed(2)}</Text>
-      <Text style={styles.cell}>{(item.totalPayable ?? 0).toFixed(2)}</Text>
-    </View>
-  );
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    Alert.alert("Confirm Delete", `Delete ${selectedIds.size} entries?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          Haptics.selectionAsync(); // 🔔 subtle haptic feedback
+          await Promise.all(Array.from(selectedIds).map(deleteLedgerEntry));
+          setSelectedIds(new Set());
+          fetchEntries();
+        },
+      },
+    ]);
+  };
 
   const totals = entries.reduce(
     (acc, cur) => {
@@ -157,99 +96,337 @@ export default function ViewPage() {
     { interestToday: 0, totalPayable: 0 }
   );
 
-  return (
-    <ScrollView style={{ flex: 1 }} horizontal>
-      <ScrollView contentContainerStyle={{ minWidth: screenWidth }}>
-        <View style={[styles.table, { transform: [{ scale }] }]}>
-          <View style={[styles.row, styles.header]}>
-            {mode === "delete" && <Text style={styles.headerCell}>Select</Text>}
-            {mode === "edit" && <Text style={styles.headerCell}>Action</Text>}
-            <Text style={[styles.headerCell, { flex: 0.5 }]}>SL. NO.</Text>
-            <Text style={styles.headerCell}>Date</Text>
-            <Text style={styles.headerCell}>Weight</Text>
-            <Text style={styles.headerCell}>Amount</Text>
-            <Text style={styles.headerCell}>Interest</Text>
-            <Text style={styles.headerCell}>Total</Text>
-          </View>
-          <FlatList scrollEnabled={false} data={entries} renderItem={renderItem} keyExtractor={(item) => item.id} />
-          <View style={[styles.row, styles.footer]}>
-            <Text style={[styles.cell, { fontWeight: "bold" }]}>Total: {entries.length} {entries.length === 1 ? "item" : "items"}</Text>
-            {[...Array(mode === "delete" ? 3 : mode === "edit" ? 3 : 2)].map((_, i) => (
-              <Text key={i} style={styles.cell}></Text>
-            ))}
-            <Text style={styles.cell}>{totals.interestToday.toFixed(2)}</Text>
-            <Text style={styles.cell}>{totals.totalPayable.toFixed(2)}</Text>
-          </View>
-          {mode === "delete" && selectedIds.size > 0 && (
-            <Button
-              title={`Delete ${selectedIds.size} Selected`}
-              color="red"
-              onPress={handleBulkDelete}
-            />
-          )}
-        </View>
-      </ScrollView>
-    </ScrollView>
-  );
-}
+  const { width } = useWindowDimensions();
+  const baseFont = Math.max(12, Math.min(16, width / 25)); // Dynamic base font
 
-function getStyles(isDarkMode: boolean, scale: number) {
-  const baseFontSize = 10 * scale;
-  return StyleSheet.create({
-    table: {
+  const styles = StyleSheet.create({
+    container: {
       flex: 1,
+      paddingTop: 30,
+      paddingHorizontal: 12,
+      paddingBottom: 24,
+    },
+    navRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 10,
+    },
+    navButton: {
+      backgroundColor: "rgba(255,255,255,0.1)",
       padding: 10,
-      backgroundColor: isDarkMode ? "#1a1a1a" : "#f9f9f9",
-      borderRadius: 16,
-      overflow: "hidden",
-      shadowColor: "#000",
-      shadowOpacity: 0.2,
-      shadowOffset: { width: 0, height: 4 },
-      shadowRadius: 10,
-      elevation: 8,
+      borderRadius: 30,
+      marginHorizontal: 5,
+    },
+    navButtonActive: {
+      backgroundColor: "#444", // Darker when active
+    },
+    rightButtons: {
+      flexDirection: "row",
+      gap: 10,
     },
     row: {
       flexDirection: "row",
-      borderBottomWidth: 0.5,
-      borderBottomColor: "#ccc",
-      paddingVertical: 10,
       alignItems: "center",
-      backgroundColor: "rgba(255,255,255,0.05)",
+      borderBottomColor: "#444",
+      borderBottomWidth: 0.5,
+      minHeight: baseFont * 2.8,
+      paddingVertical: baseFont * 0.25,
     },
+
     header: {
-      backgroundColor: isDarkMode ? "rgba(255,255,255,0.1)" : "#e0e0e0",
+      backgroundColor: "rgba(255,255,255,0.05)",
+      borderTopLeftRadius: 12,
+      borderTopRightRadius: 12,
     },
+
     footer: {
-      backgroundColor: isDarkMode ? "rgba(255,255,255,0.1)" : "#e0e0e0",
+      backgroundColor: "rgba(255,255,255,0.05)",
+      borderBottomLeftRadius: 12,
+      borderBottomRightRadius: 12,
+      paddingVertical: baseFont * 0.3,
+      flexDirection: "row",
+      alignItems: "center",
     },
-    cell: {
-      flex: 1,
-      paddingHorizontal: 6,
-      fontSize: baseFontSize,
-      textAlign: "center",
-      color: isDarkMode ? "#fff" : "#000",
+
+    footerCellWrapper: {
+      minWidth: 100,
+      justifyContent: "center",
+      alignItems: "flex-start",
+      paddingHorizontal: 4,
     },
-    text: {
-      color: isDarkMode ? "#fff" : "#000",
-    },
-    headerCell: {
-      flex: 1,
-      paddingHorizontal: 6,
+
+    footerValue: {
+      fontSize: baseFont,
+      color: "white",
       fontWeight: "bold",
-      fontSize: baseFontSize,
-      textAlign: "center",
-      color: isDarkMode ? "#fff" : "#000",
     },
-    actionCell: {
-      flex: 1,
-      textAlign: "center",
-      fontSize: baseFontSize,
-      paddingHorizontal: 5,
+
+    footerLabel: {
+      fontSize: baseFont * 0.7,
+      color: "#aaa",
+      marginTop: 2,
+      alignItems: "flex-end",
     },
-    selectCell: {
-      flex: 1,
+
+    headerCell: {
+      fontWeight: "bold",
+      color: "white",
+      fontSize: baseFont,
+      minWidth: 100,
       textAlign: "center",
-      fontSize: baseFontSize,
+      paddingHorizontal: 4,
+    },
+
+    cell: {
+      color: "white",
+      fontSize: baseFont,
+      textAlign: "center",
+      minWidth: 100,
+      paddingVertical: baseFont * 0.3,
+      paddingHorizontal: 4,
+    },
+
+    card: {
+      flex: 1,
+      borderRadius: 16,
+      backgroundColor: "rgba(255,255,255,0.05)",
+      padding: 10,
+    },
+
+    deleteButton: {
+      backgroundColor: "red",
+      borderRadius: 10,
+      paddingVertical: baseFont * 0.8,
+      paddingHorizontal: 24,
+      width: "100%",
+    },
+
+    deleteButtonText: {
+      color: "white",
+      textAlign: "center",
+      fontSize: baseFont + 2,
+      fontWeight: "bold",
+    },
+
+    checkboxCell: {
+      width: 30,
+      alignItems: "center",
+    },
+    checkbox: {
+      width: 18,
+      height: 18,
+      borderWidth: 1,
+      borderColor: "#888",
+      borderRadius: 3,
+    },
+    checkboxSelected: {
+      backgroundColor: "skyblue",
+    },
+    bottomDelete: {
+      marginTop: 16,
+      width: "100%",
+      alignItems: "center",
     },
   });
+
+  return (
+    <View style={styles.container}>
+      {/* Top floating navbar */}
+      <View style={styles.navRow}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.navButton}
+        >
+          <Feather name="arrow-left" size={22} color="white" />
+        </TouchableOpacity>
+        <View style={styles.rightButtons}>
+          <TouchableOpacity
+            onPress={async () => {
+              try {
+                await exportLedgerToCSV(entries);
+              } catch (err: any) {
+                Alert.alert("Export Failed", err.message || "Unknown error");
+              }
+            }}
+            style={styles.navButton}
+          >
+            <Feather name="download" size={22} color="white" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.navButton,
+              mode === "edit" && styles.navButtonActive,
+            ]}
+            onPress={() => setMode(mode === "edit" ? "view" : "edit")}
+          >
+            <Feather name="edit" size={20} color="white" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.navButton,
+              mode === "delete" && styles.navButtonActive,
+            ]}
+            onPress={() => setMode(mode === "delete" ? "view" : "delete")}
+          >
+            <Feather name="trash" size={20} color="white" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Glass Card Container */}
+      <View style={styles.card}>
+        <ScrollView horizontal showsHorizontalScrollIndicator>
+          <View style={{ flex: 1 }}>
+            {/* Header Row */}
+            <View style={[styles.row, styles.header]}>
+              {mode === "delete" && (
+                <Text style={[styles.headerCell, { minWidth: 35 }]}>✓</Text>
+              )}
+              {mode === "edit" && <Text style={styles.headerCell}>Edit</Text>}
+              <Text style={styles.headerCell}>Serial</Text>
+              <Text style={styles.headerCell}>Date</Text>
+              <Text style={styles.headerCell}>Weight</Text>
+              <Text style={styles.headerCell}>Amount</Text>
+              <Text style={styles.headerCell}>Interest</Text>
+              <Text style={styles.headerCell}>Total</Text>
+            </View>
+
+            {/* Scrollable data rows that take remaining space */}
+            <View style={{ flex: 1 }}>
+              <ScrollView showsVerticalScrollIndicator style={{ flex: 1 }}>
+                {entries.map((item) => {
+                  const isSelected = selectedIds.has(item.id);
+
+                  // DELETE MODE — entire row is clickable
+                  if (mode === "delete") {
+                    return (
+                      <TouchableOpacity
+                        key={item.id}
+                        onPress={() => {
+                          toggleSelection(item.id);
+                          Haptics.selectionAsync(); // 🔔 subtle haptic feedback
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <View style={styles.row}>
+                          {/* Checkbox */}
+                          <View style={styles.checkboxCell}>
+                            <View
+                              style={[
+                                styles.checkbox,
+                                isSelected && styles.checkboxSelected,
+                              ]}
+                            >
+                              {isSelected && (
+                                <Feather
+                                  name="check"
+                                  size={baseFont}
+                                  color="white"
+                                />
+                              )}
+                            </View>
+                          </View>
+                          <Text style={styles.cell}>{item.serialNumber}</Text>
+                          <Text style={styles.cell}>{item.displayDate}</Text>
+                          <Text style={styles.cell}>{item.weight}</Text>
+                          <Text style={styles.cell}>{item.amount}</Text>
+                          <Text style={styles.cell}>
+                            {(item.interestToday ?? 0).toFixed(2)}
+                          </Text>
+                          <Text style={styles.cell}>
+                            {(item.totalPayable ?? 0).toFixed(2)}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  }
+
+                  // EDIT MODE or VIEW MODE — row is not clickable except for edit cell
+                  return (
+                    <View key={item.id} style={styles.row}>
+                      {mode === "edit" && (
+                        <TouchableOpacity
+                          onPress={() =>
+                            router.push({
+                              pathname: "/edit",
+                              params: { entry: JSON.stringify(item) },
+                            })
+                          }
+                        >
+                          <Text style={[styles.cell, { color: "skyblue" }]}>
+                            Edit
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      <Text style={styles.cell}>{item.serialNumber}</Text>
+                      <Text style={styles.cell}>{item.displayDate}</Text>
+                      <Text style={styles.cell}>{item.weight}</Text>
+                      <Text style={styles.cell}>{item.amount}</Text>
+                      <Text style={styles.cell}>
+                        {(item.interestToday ?? 0).toFixed(2)}
+                      </Text>
+                      <Text style={styles.cell}>
+                        {(item.totalPayable ?? 0).toFixed(2)}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            {/* Footer */}
+            <View style={[styles.row, styles.footer]}>
+              <View style={styles.footerCellWrapper}>
+                <Text style={styles.footerValue}>
+                  Total Entries ({entries.length})
+                </Text>
+              </View>
+
+              {(mode === "edit" || mode === "delete") && (
+                <View style={styles.footerCellWrapper} />
+              )}
+              <View style={styles.footerCellWrapper} />
+              <View style={styles.footerCellWrapper} />
+              <View style={styles.footerCellWrapper}>
+                <Text style={styles.footerValue}>
+                  {totals.interestToday.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
+                </Text>
+                <Text style={styles.footerLabel}>Interest</Text>
+              </View>
+              <View style={styles.footerCellWrapper}>
+                <Text style={styles.footerValue}>
+                  {totals.totalPayable.toLocaleString("en-IN", {
+                    minimumFractionDigits: 2,
+                  })}
+                </Text>
+                <Text style={styles.footerLabel}>Total</Text>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* Bottom delete button */}
+        {mode === "delete" && selectedIds.size > 0 && (
+          <View style={styles.bottomDelete}>
+            <TouchableOpacity
+              onPress={() => {
+                Haptics.selectionAsync(); // 🔔 subtle haptic feedback
+                handleBulkDelete();
+              }}
+              style={styles.deleteButton}
+            >
+              <Text style={styles.deleteButtonText}>
+                Delete {selectedIds.size} Entr
+                {selectedIds.size === 1 ? "y" : "ies"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </View>
+  );
 }

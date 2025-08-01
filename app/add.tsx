@@ -1,117 +1,172 @@
-import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
-import { useState } from 'react';
-import { addLedgerEntry } from '../config/ledgerService';
-import { useRouter } from 'expo-router';
-import { parse, format, isValid } from 'date-fns';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Alert,
+  TouchableOpacity,
+} from "react-native";
+import { useState, useLayoutEffect } from "react";
+import { useRouter, useNavigation } from "expo-router";
+import { addLedgerEntry } from "../config/ledgerService";
+import { parse, format, isValid } from "date-fns";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function AddEntryScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
 
-  const [serialNumber, setSerialNumber] = useState('');
-  const [displayDate, setDisplayDate] = useState(''); // DD-MM-YYYY
-  const [weight, setWeight] = useState('');
-  const [amount, setAmount] = useState('');
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, []);
+
+  const [serialNumber, setSerialNumber] = useState("");
+  const [displayDate, setDisplayDate] = useState(""); // DD-MM-YYYY
+  const [weight, setWeight] = useState("");
+  const [amount, setAmount] = useState("");
 
   const handleSubmit = async () => {
-    const trimmedSerial = serialNumber.trim();
-    const trimmedDate = displayDate.trim();
-    const trimmedWeight = weight.trim();
-    const trimmedAmount = amount.trim();
-
-    if (!trimmedSerial || !trimmedDate || !trimmedWeight || !trimmedAmount) {
-      Alert.alert('Validation Error', 'Please fill all fields.');
+    if (!serialNumber || !displayDate || !weight || !amount) {
+      Alert.alert("Validation Error", "Please fill all fields.");
       return;
     }
 
-    const parsedDate = parse(trimmedDate, 'dd-MM-yyyy', new Date());
+    const parsedDate = parse(displayDate.trim(), "dd-MM-yyyy", new Date());
     if (!isValid(parsedDate)) {
-      Alert.alert('Invalid Date', 'Please enter a valid date in DD-MM-YYYY format.');
+      Alert.alert("Invalid Date", "Use format DD-MM-YYYY.");
       return;
     }
 
-    const numericAmount = parseFloat(trimmedAmount);
+    const numericAmount = parseFloat(amount);
     if (isNaN(numericAmount) || numericAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Amount must be a positive number.');
+      Alert.alert("Invalid Amount", "Must be a positive number.");
       return;
     }
 
     try {
-      const isoDate = format(parsedDate, 'yyyy-MM-dd');
-
+      const isoDate = format(parsedDate, "yyyy-MM-dd");
       await addLedgerEntry({
-        serialNumber: trimmedSerial,
-        displayDate: trimmedDate,
+        serialNumber: serialNumber.trim(),
+        displayDate: displayDate.trim(),
         date: isoDate,
-        weight: trimmedWeight,
+        weight: weight.trim(),
         amount: numericAmount,
       });
 
-      Alert.alert('Success', 'Entry added!');
-      // Instead of navigating away, we reset the form
-      setSerialNumber('');
-      setDisplayDate('');
-      setWeight('');
-      setAmount('');
+      Alert.alert("Success", "Entry added!");
+      setSerialNumber("");
+      setDisplayDate("");
+      setWeight("");
+      setAmount("");
     } catch (err) {
       console.error(err);
-      Alert.alert('Error', 'Failed to add entry.');
+      Alert.alert("Error", "Failed to add entry.");
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Add Ledger Entry</Text>
+      {/* Floating Back Button */}
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <Ionicons name="arrow-back" size={24} color="#fff" />
+      </TouchableOpacity>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Serial Number"
-        value={serialNumber}
-        onChangeText={setSerialNumber}
-      />
+      <View style={styles.form}>
+        <Text style={styles.title}>Add Ledger Entry</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Date (DD-MM-YYYY)"
-        value={displayDate}
-        onChangeText={setDisplayDate}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Serial Number"
+          placeholderTextColor="#aaa"
+          value={serialNumber}
+          onChangeText={setSerialNumber}
+        />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Weight"
-        value={weight}
-        onChangeText={setWeight}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Date (DD-MM-YYYY)"
+          placeholderTextColor="#aaa"
+          value={displayDate}
+          onChangeText={setDisplayDate}
+        />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Amount"
-        keyboardType="numeric"
-        value={amount}
-        onChangeText={setAmount}
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Weight"
+          placeholderTextColor="#aaa"
+          value={weight}
+          onChangeText={setWeight}
+        />
 
-      <Button title="Submit" onPress={handleSubmit} />
+        <TextInput
+          style={styles.input}
+          placeholder="Amount"
+          placeholderTextColor="#aaa"
+          keyboardType="numeric"
+          value={amount}
+          onChangeText={setAmount}
+        />
+
+        <TouchableOpacity style={styles.glassButton} onPress={handleSubmit}>
+          <Text style={styles.buttonText}>Submit</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
     flex: 1,
-    gap: 10,
-    backgroundColor: '#fff',
+    position: "relative",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  form: {
+    width: "90%",
+    maxWidth: 320,
+    paddingVertical: 40,
+    alignItems: "center",
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 24,
   },
   input: {
-    borderColor: '#ccc',
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderWidth: 1,
-    padding: 12,
-    borderRadius: 8,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    color: "#fff",
+    marginBottom: 14,
+    width: "100%",
+  },
+  glassButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    marginTop: 12,
+    width: "100%",
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  backButton: {
+    position: "absolute",
+    top: 40,
+    left: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    padding: 10,
+    borderRadius: 30,
+    zIndex: 10,
   },
 });

@@ -1,15 +1,16 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, useNavigation } from "expo-router";
 import {
   View,
   Text,
   TextInput,
-  Button,
   StyleSheet,
   Alert,
+  TouchableOpacity,
 } from "react-native";
-import { useState } from "react";
+import { useState, useLayoutEffect } from "react";
 import { updateLedgerEntry } from "../config/ledgerService";
 import { LedgerEntryWithId } from "../lib/types";
+import { Ionicons } from "@expo/vector-icons";
 
 // Converts DD-MM-YYYY to ISO format YYYY-MM-DD
 function convertToISO(displayDate: string): string | null {
@@ -22,6 +23,11 @@ function convertToISO(displayDate: string): string | null {
 export default function EditPage() {
   const { entry } = useLocalSearchParams<{ entry: string }>();
   const router = useRouter();
+  const navigation = useNavigation();
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerShown: false });
+  }, []);
 
   const parsedEntry = JSON.parse(entry || "{}") as LedgerEntryWithId;
 
@@ -33,9 +39,11 @@ export default function EditPage() {
   const [amount, setAmount] = useState(parsedEntry.amount.toString());
 
   const handleUpdate = async () => {
-    // Input validation
     if (!serialNumber.trim() || !weight.trim()) {
-      return Alert.alert("Validation Error", "Serial number and weight are required.");
+      return Alert.alert(
+        "Validation Error",
+        "Serial number and weight are required."
+      );
     }
 
     const isoDate = convertToISO(displayDate.trim());
@@ -48,7 +56,10 @@ export default function EditPage() {
 
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
-      return Alert.alert("Invalid Amount", "Please enter a valid numeric amount.");
+      return Alert.alert(
+        "Invalid Amount",
+        "Please enter a valid numeric amount."
+      );
     }
 
     try {
@@ -70,55 +81,108 @@ export default function EditPage() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Edit Entry</Text>
+      {/* Floating Back Button */}
+      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <Ionicons name="arrow-back" size={24} color="#fff" />
+      </TouchableOpacity>
 
-      <TextInput
-        style={styles.input}
-        value={serialNumber}
-        onChangeText={setSerialNumber}
-        placeholder="Serial Number"
-      />
-      <TextInput
-        style={styles.input}
-        value={displayDate}
-        onChangeText={setDisplayDate}
-        placeholder="Date (DD-MM-YYYY)"
-      />
-      <TextInput
-        style={styles.input}
-        value={weight}
-        onChangeText={setWeight}
-        placeholder="Weight"
-      />
-      <TextInput
-        style={styles.input}
-        value={amount}
-        onChangeText={setAmount}
-        keyboardType="numeric"
-        placeholder="Amount"
-      />
+      <View style={styles.form}>
+        <Text style={styles.title}>Edit Ledger Entry</Text>
 
-      <Button title="Update Entry" onPress={handleUpdate} />
+        <TextInput
+          style={styles.input}
+          placeholder="Serial Number"
+          placeholderTextColor="#aaa"
+          value={serialNumber}
+          onChangeText={setSerialNumber}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Date (DD-MM-YYYY)"
+          placeholderTextColor="#aaa"
+          value={displayDate}
+          onChangeText={setDisplayDate}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Weight"
+          placeholderTextColor="#aaa"
+          value={weight}
+          onChangeText={setWeight}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Amount"
+          placeholderTextColor="#aaa"
+          keyboardType="numeric"
+          value={amount}
+          onChangeText={setAmount}
+        />
+
+        <TouchableOpacity style={styles.glassButton} onPress={handleUpdate}>
+          <Text style={styles.buttonText}>Update Entry</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
     flex: 1,
-    gap: 10,
-    backgroundColor: "#fff",
+    position: "relative",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  form: {
+    width: "90%",
+    maxWidth: 320,
+    paddingVertical: 40,
+    alignItems: "center",
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "bold",
-    marginBottom: 16,
+    color: "#fff",
+    marginBottom: 24,
   },
   input: {
-    borderColor: "#ccc",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderWidth: 1,
-    padding: 12,
-    borderRadius: 8,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    color: "#fff",
+    marginBottom: 14,
+    width: "100%",
+  },
+  glassButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    marginTop: 12,
+    width: "100%",
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  backButton: {
+    position: "absolute",
+    top: 40,
+    left: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    padding: 10,
+    borderRadius: 30,
+    zIndex: 10,
   },
 });

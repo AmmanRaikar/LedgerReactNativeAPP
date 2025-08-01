@@ -1,30 +1,28 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import Constants from 'expo-constants';
 
-// Your web app's Firebase configuration
-import {
-  FIREBASE_API_KEY,
-  FIREBASE_AUTH_DOMAIN,
-  FIREBASE_PROJECT_ID,
-  FIREBASE_STORAGE_BUCKET,
-  FIREBASE_MESSAGING_SENDER_ID,
-  FIREBASE_APP_ID
-} from '@env';
+const {
+  firebaseApiKey,
+  firebaseAuthDomain,
+  firebaseProjectId,
+  firebaseStorageBucket,
+  firebaseMessagingSenderId,
+  firebaseAppId,
+} = Constants.expoConfig?.extra ?? {};
 
 const firebaseConfig = {
-  apiKey: FIREBASE_API_KEY,
-  authDomain: FIREBASE_AUTH_DOMAIN,
-  projectId: FIREBASE_PROJECT_ID,
-  storageBucket: FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
-  appId: FIREBASE_APP_ID,
+  apiKey: firebaseApiKey,
+  authDomain: firebaseAuthDomain,
+  projectId: firebaseProjectId,
+  storageBucket: firebaseStorageBucket,
+  messagingSenderId: firebaseMessagingSenderId,
+  appId: firebaseAppId,
 };
 
 if (!firebaseConfig.apiKey) {
-  console.warn("Missing Firebase config values");
+  console.warn("Missing Firebase config values in production.");
 }
 
-
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
