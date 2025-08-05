@@ -5,9 +5,12 @@
 
 # **APP SHOWCASE:**
 
+## Screenshots:
 <img src="https://github.com/AmmanRaikar/LedgerReactNativeAPP/blob/main/Showcase/Screenshot_2025-08-05-23-20-00-181_com.ammanraikar.LedgerReactNativeAPP.jpg" alt="Splash Screen image" width="24.5%"/> <img src="https://github.com/AmmanRaikar/LedgerReactNativeAPP/blob/main/Showcase/Screenshot_2025-08-05-23-20-03-173_com.ammanraikar.LedgerReactNativeAPP.jpg" alt="Home Screen image" width="24.5%"/> <img src="https://github.com/AmmanRaikar/LedgerReactNativeAPP/blob/main/Showcase/Screenshot_2025-08-05-23-20-22-575_com.ammanraikar.LedgerReactNativeAPP.jpg" alt="Add Screen image" width="24.5%"/> <img src="https://github.com/AmmanRaikar/LedgerReactNativeAPP/blob/main/Showcase/Screenshot_2025-08-05-23-20-43-454_android.jpg" alt="Exporting Database image" width="24.5%"/>
 
-[![Showcase video](https://github.com/AmmanRaikar/LedgerReactNativeAPP/blob/main/Showcase/Screenshot_2025-08-05-23-20-00-181_com.ammanraikar.LedgerReactNativeAPP.jpg)](https://github.com/AmmanRaikar/LedgerReactNativeAPP/blob/main/Showcase/MP4_20250805_233142VLOG.mp4)
+## Video Showcase:
+
+  [<img src="https://github.com/AmmanRaikar/LedgerReactNativeAPP/blob/main/Showcase/Screenshot_2025-08-05-23-20-00-181_com.ammanraikar.LedgerReactNativeAPP.jpg" alt="Splash Screen image" width="50%"/>](https://github.com/AmmanRaikar/LedgerReactNativeAPP/blob/main/Showcase/MP4_20250805_233142VLOG.mp4)
 
 ---
 
